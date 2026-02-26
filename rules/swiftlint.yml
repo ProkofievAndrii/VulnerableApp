@@ -1,0 +1,21 @@
+disabled_rules:
+  - trailing_whitespace
+
+custom_rules:
+  no_print_statements:
+    name: "No print statements"
+    regex: "(?<!//)print\\("
+    message: "Use of print() is prohibited (OWASP M9). Sensitive data might be exposed in device logs. Use a secure logging framework."
+    severity: error
+
+  no_user_defaults:
+    name: "Avoid UserDefaults for secrets"
+    regex: "UserDefaults\\.standard"
+    message: "Do not use UserDefaults for storing sensitive information (OWASP M9). Use Keychain Services instead."
+    severity: warning
+
+  no_http_urls:
+    name: "Insecure HTTP URL"
+    regex: "http://"
+    message: "Insecure HTTP protocol detected (OWASP M5). Use HTTPS to ensure data encryption in transit."
+    severity: error

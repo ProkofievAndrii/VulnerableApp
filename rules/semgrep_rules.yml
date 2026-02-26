@@ -1,0 +1,26 @@
+rules:
+  - id: insecure-md5-hashing
+    patterns:
+      - pattern: CC_MD5(...)
+    message: "Insecure MD5 hashing detected (OWASP M10). MD5 is cryptographically broken and should not be used for sensitive data. Use CryptoKit and SHA-256 or stronger."
+    languages: [swift]
+    severity: ERROR
+
+  - id: hardcoded-api-key
+    patterns:
+      - pattern: let $KEY = "..."
+      - metavariable-regex:
+          metavariable: "$KEY"
+          regex: "(?i)(api|secret|token|password|key)"
+    message: "Potential hardcoded credential detected (OWASP M1). Move secrets to a secure storage like Keychain or use Environment Variables."
+    languages: [swift]
+    severity: WARNING
+    
+  - id: insecure-ats-configuration
+    languages: [generic]
+    patterns:
+      - pattern: <key>NSAllowsArbitraryLoads</key><true/>
+    message: "App Transport Security (ATS) is disabled (OWASP M5). This allows insecure HTTP connections."
+    paths:
+      include: ["*.plist"]
+    severity: ERROR

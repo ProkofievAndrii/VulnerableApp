@@ -6,19 +6,60 @@
 //
 
 import SwiftUI
+import CommonCrypto
 
 struct ContentView: View {
-    var body: some View {
-        VStack {
-            Image(systemName: "globe")
-                .imageScale(.large)
-                .foregroundStyle(.tint)
-            Text("Hello, world!")
-        }
-        .padding()
-    }
-}
+    // M1: Improper Credential Usage
+    let apiSecret = "AIzaSyB-83492_asD9238492n3asD_231908"
+    let firebaseToken = "1:923481029:ios:9a2c3d4e5f6g7h8i"
 
-#Preview {
-    ContentView()
+    @State private var username = ""
+    @State private var password = ""
+    @State private var statusMessage = ""
+
+    var body: some View {
+        Form {
+            Section(header: Text("Authentication")) {
+                TextField("Username", text: $username)
+                SecureField("Password", text: $password)
+                Button("Login") {
+                    performInsecureLogin()
+                }
+            }
+            Text(statusMessage)
+                .foregroundColor(.red)
+        }
+    }
+
+    func performInsecureLogin() {
+        // M9: Insecure Data Storage
+        print("DEBUG: Attempting login for \(username) with password: \(password)")
+
+        // M9: Insecure Data Storage
+        UserDefaults.standard.set(password, forKey: "last_logged_in_password")
+
+        // M10: Insufficient Cryptography
+        let passwordHash = insecureHash(password)
+        
+        // M5: Insecure Communication
+        sendDataToServer(user: username, hash: passwordHash)
+    }
+
+    func insecureHash(_ input: String) -> String {
+        let length = Int(CC_MD5_DIGEST_LENGTH)
+        let messageData = input.data(using:.utf8)!
+        var digest = [UInt8](repeating: 0, count:length)
+        
+        _ = messageData.withUnsafeBytes {
+            CC_MD5($0.baseAddress, CC_LONG(messageData.count), &digest)
+        }
+        
+        return digest.map { String(format: "%02hhx", $0) }.joined()
+    }
+    
+    func sendDataToServer(user: String, hash: String) {
+        let urlString = "http://api.myserver.com/login?u=\(user)&p=\(hash)"
+        print("Sending request to: \(urlString)")
+        statusMessage = "Data sent over insecure channel!"
+    }
 }
