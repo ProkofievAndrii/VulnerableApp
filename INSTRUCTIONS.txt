@@ -1,0 +1,6 @@
+DOCKER LAUNCH:
+
+docker run -it --rm \
+  -p 8000:8000 \
+  -e MOBSF_API_KEY=1a122a63777930dc140128532b169071c12c99b2e8e34b33c5d505d4c9f35c67 \
+  opensecurity/mobile-security-framework-mobsf:latest
