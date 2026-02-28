@@ -1,0 +1,36 @@
+===== START:
+
+git clone https://github.com/ProkofievAndrii/VulnerableApp.git
+cd VulnerableApp
+chmod +x setup.sh
+./setup.sh
+
+===== DOCKER LAUNCH:
+
+docker run -it --rm \
+  -p 8000:8000 \
+  -e MOBSF_API_KEY=1a122a63777930dc140128532b169071c12c99b2e8e34b33c5d505d4c9f35c67 \
+  opensecurity/mobile-security-framework-mobsf:latest
+
+THEN OPEN LINK:
+
+http://localhost:8000/
+
+WITH mobsf mobsf AS login & password
+
+===== MANUAL TESTS:
+
+FOR SWIFTLINT(FROM ROOT):
+
+swiftlint lint --config rules/swiftlint.yml
+
+FOR SEMGREP(FROM ROOT):
+
+semgrep scan --config rules/semgrep_rules.yml SecurityTestApp/
+
+===== ORCHESTRATOR:
+
+source venv/bin/activate
+
+
+

@@ -92,32 +92,76 @@ def run_semgrep():
     return json.loads(result.stdout) if result.stdout else {}
 
 
+def get_code_snippet(file_path, line_number):
+    """Достает строку кода из файла для отчета"""
+    try:
+        if not os.path.exists(file_path):
+            # Проверка для Semgrep, который может давать относительный путь
+            full_path = os.path.join(os.getcwd(), file_path)
+        else:
+            full_path = file_path
+
+        with open(full_path, 'r') as f:
+            lines = f.readlines()
+            if 0 < line_number <= len(lines):
+                return lines[line_number - 1].strip()
+    except Exception:
+        return "Source code not available"
+    return "Line not found"
+
+
 def generate_final_report(lint_data, semgrep_data, mobsf_data):
     timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M")
     report_filename = f"SECURITY_REPORT_{timestamp}.md"
 
-    print("[*] Generating Unified Security Report...")
-    report_content = "# Unified Security Analysis Report\n\n"
-    report_content += "## 1. Summary\n"
-    report_content += f"- **Total Issues (SwiftLint):** {len(lint_data)}\n"
-    report_content += f"- **Total Issues (Semgrep):** {len(semgrep_data.get('results', []))}\n"
+    print(f"[*] Generating Detailed Security Report: {report_filename}...")
 
-    report_content += "\n## 2. Vulnerabilities by OWASP Mobile Top 10\n"
-    report_content += "| Tool | Category | File | Message |\n"
-    report_content += "|------|----------|------|---------|\n"
+    report_content = "# Detailed Security Analysis Report\n"
+    report_content += f"**Date:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
 
+    report_content += "## 1. Executive Summary\n"
+    report_content += f"- **SwiftLint Issues:** {len(lint_data)}\n"
+    report_content += f"- **Semgrep Issues:** {len(semgrep_data.get('results', []))}\n\n"
+
+    report_content += "## 2. Detailed Findings\n"
+    report_content += "---\n"
+
+    # 1. Обработка SwiftLint
     for issue in lint_data:
+        file_path = issue['file']
+        line = issue['line']
+        code_snippet = get_code_snippet(file_path, line)
         category = "M5/M9" if "OWASP" not in issue['reason'] else issue['reason'].split('(')[1].split(')')[0]
-        report_content += f"| SwiftLint | {category} | {issue['file']} | {issue['reason']} |\n"
 
+        report_content += f"### [{category}] {issue['reason']}\n"
+        report_content += f"- **Tool:** SwiftLint\n"
+        report_content += f"- **File:** `{file_path}` (Line: {line})\n"
+        report_content += f"- **Code:** `{code_snippet}`\n"
+        report_content += f"- **Message:** {issue['reason']}\n\n"
+        report_content += "---\n"
+
+    # 2. Обработка Semgrep
     for finding in semgrep_data.get('results', []):
+        file_path = finding['path']
+        line = finding['start']['line']
+        code_snippet = get_code_snippet(file_path, line)
         msg = finding['extra']['message']
         category = "M1/M10" if "OWASP" not in msg else msg.split('(')[1].split(')')[0]
-        report_content += f"| Semgrep | {category} | {finding['path']} | {msg} |\n"
 
+        report_content += f"### [{category}] {finding['check_id']}\n"
+        report_content += f"- **Tool:** Semgrep\n"
+        report_content += f"- **File:** `{file_path}` (Line: {line})\n"
+        report_content += f"- **Code:** `{code_snippet}`\n"
+        report_content += f"- **Message:** {msg}\n\n"
+        report_content += "---\n"
+
+    with open(report_filename, "w") as f:
+        f.write(report_content)
+    # Сохраняем также как FINAL для удобства
     with open("FINAL_SECURITY_REPORT.md", "w") as f:
         f.write(report_content)
-    print("[+] Report saved to FINAL_SECURITY_REPORT.md")
+
+    print(f"[+] Report saved to {report_filename}")
 
 
 if __name__ == "__main__":
@@ -138,15 +182,15 @@ if __name__ == "__main__":
         if file_hash:
             if start_scan(file_hash):
                 import time
-
                 print("[*] Waiting for MobSF to process...")
-                time.sleep(5)
+                time.sleep(10)
 
                 mobsf_report = get_mobsf_json_report(file_hash)
-
                 generate_final_report(lint_results, semgrep_results, mobsf_report)
 
-                print("\n[SUCCESS] Analysis complete. Check FINAL_SECURITY_REPORT.md")
+                print("\n[SUCCESS] Analysis complete.")
+                print(f"[*] Results combined from SwiftLint ({len(lint_results)} issues) and Semgrep.")
+                print("[*] Check FINAL_SECURITY_REPORT.md for details.")
             else:
                 print("[-] Critical Error: MobSF scan failed to start.")
         else:
