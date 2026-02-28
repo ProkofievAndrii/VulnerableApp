@@ -3,6 +3,7 @@ import zipfile
 import requests
 import json
 import subprocess
+from datetime import datetime
 
 # --- CONFIG ---
 MOBSF_URL = "http://localhost:8000"
@@ -10,49 +11,68 @@ API_KEY = "1a122a63777930dc140128532b169071c12c99b2e8e34b33c5d505d4c9f35c67"
 PROJECT_DIR = "SecurityTestApp"
 OUTPUT_ZIP = "SecurityTestApp.zip"
 
+
 def create_zip(source_dir, output_filename):
-    print(f"[*] Archiving {source_dir}...")
+    print(f"[*] Archiving {source_dir} for MobSF...")
     with zipfile.ZipFile(output_filename, 'w', zipfile.ZIP_DEFLATED) as zipf:
         for root, dirs, files in os.walk(source_dir):
+            if any(x in root for x in ['build', '.git', 'venv', 'DerivedData', 'xcuserdata']):
+                continue
             for file in files:
-                if not any(x in root for x in ['build', '.git', 'xcuserdata']):
-                    zipf.write(os.path.join(root, file))
-    print(f"[+] Archive created: {output_filename}")
+                if file.startswith('.'):
+                    continue
+
+                file_path = os.path.join(root, file)
+                archive_name = os.path.relpath(file_path, source_dir)
+                zipf.write(file_path, archive_name)
+
 
 def upload_to_mobsf(file_path):
     print("[*] Uploading to MobSF API...")
     url = f"{MOBSF_URL}/api/v1/upload"
     headers = {"Authorization": API_KEY}
-    files = {"file": open(file_path, "rb")}
-    
-    response = requests.post(url, files=files, headers=headers)
-    if response.status_code == 200:
-        print("[+] Upload successful!")
-        return response.json()["hash"]
-    else:
-        print(f"[-] Upload failed: {response.text}")
+
+    file_name = os.path.basename(file_path)
+
+    try:
+        with open(file_path, "rb") as f:
+            files = {
+                "file": (file_name, f, "application/zip")
+            }
+            response = requests.post(url, files=files, headers=headers)
+
+        if response.status_code == 200:
+            print("[+] Upload successful!")
+            return response.json()["hash"]
+        else:
+            print(f"[-] Upload failed: {response.status_code} - {response.text}")
+            return None
+    except Exception as e:
+        print(f"[-] Error during upload: {e}")
         return None
+
 
 def start_scan(file_hash):
     print(f"[*] Starting Static Analysis for hash: {file_hash}...")
     url = f"{MOBSF_URL}/api/v1/scan"
     headers = {"Authorization": API_KEY}
     data = {"hash": file_hash}
-    
     response = requests.post(url, data=data, headers=headers)
     if response.status_code == 200:
         print("[+] Scan initiated successfully.")
         return True
     return False
 
+
 def get_mobsf_json_report(file_hash):
     print("[*] Fetching JSON report...")
     url = f"{MOBSF_URL}/api/v1/report_json"
     headers = {"Authorization": API_KEY}
     data = {"hash": file_hash}
-    
+
     response = requests.post(url, data=data, headers=headers)
     return response.json()
+
 
 def run_swiftlint():
     print("[*] Running SwiftLint...")
@@ -62,6 +82,7 @@ def run_swiftlint():
     )
     return json.loads(result.stdout) if result.stdout else []
 
+
 def run_semgrep():
     print("[*] Running Semgrep...")
     result = subprocess.run(
@@ -70,14 +91,66 @@ def run_semgrep():
     )
     return json.loads(result.stdout) if result.stdout else {}
 
+
+def generate_final_report(lint_data, semgrep_data, mobsf_data):
+    timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M")
+    report_filename = f"SECURITY_REPORT_{timestamp}.md"
+
+    print("[*] Generating Unified Security Report...")
+    report_content = "# Unified Security Analysis Report\n\n"
+    report_content += "## 1. Summary\n"
+    report_content += f"- **Total Issues (SwiftLint):** {len(lint_data)}\n"
+    report_content += f"- **Total Issues (Semgrep):** {len(semgrep_data.get('results', []))}\n"
+
+    report_content += "\n## 2. Vulnerabilities by OWASP Mobile Top 10\n"
+    report_content += "| Tool | Category | File | Message |\n"
+    report_content += "|------|----------|------|---------|\n"
+
+    for issue in lint_data:
+        category = "M5/M9" if "OWASP" not in issue['reason'] else issue['reason'].split('(')[1].split(')')[0]
+        report_content += f"| SwiftLint | {category} | {issue['file']} | {issue['reason']} |\n"
+
+    for finding in semgrep_data.get('results', []):
+        msg = finding['extra']['message']
+        category = "M1/M10" if "OWASP" not in msg else msg.split('(')[1].split(')')[0]
+        report_content += f"| Semgrep | {category} | {finding['path']} | {msg} |\n"
+
+    with open("FINAL_SECURITY_REPORT.md", "w") as f:
+        f.write(report_content)
+    print("[+] Report saved to FINAL_SECURITY_REPORT.md")
+
+
 if __name__ == "__main__":
-    lint_results = run_swiftlint()
-    semgrep_results = run_semgrep()
-    
-    create_zip(PROJECT_DIR, OUTPUT_ZIP)
-    file_hash = upload_to_mobsf(OUTPUT_ZIP)
-    
-    if file_hash:
-        if start_scan(file_hash):
-            mobsf_report = get_mobsf_json_report(file_hash)
-            print("[+] All scans completed!")
+    try:
+        print("=== Security Orchestration Started ===")
+
+        lint_results = run_swiftlint()
+        semgrep_results = run_semgrep()
+
+        if os.path.exists(PROJECT_DIR):
+            create_zip(PROJECT_DIR, OUTPUT_ZIP)
+        else:
+            print(f"[-] Error: Directory {PROJECT_DIR} not found.")
+            exit(1)
+
+        file_hash = upload_to_mobsf(OUTPUT_ZIP)
+
+        if file_hash:
+            if start_scan(file_hash):
+                import time
+
+                print("[*] Waiting for MobSF to process...")
+                time.sleep(5)
+
+                mobsf_report = get_mobsf_json_report(file_hash)
+
+                generate_final_report(lint_results, semgrep_results, mobsf_report)
+
+                print("\n[SUCCESS] Analysis complete. Check FINAL_SECURITY_REPORT.md")
+            else:
+                print("[-] Critical Error: MobSF scan failed to start.")
+        else:
+            print("[-] Critical Error: Could not get file hash from MobSF.")
+
+    except Exception as e:
+        print(f"[-] An unexpected error occurred: {e}")

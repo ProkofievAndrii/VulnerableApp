@@ -2,6 +2,12 @@
 #
 # gitignore contributors: remember to update Global/Xcode.gitignore, Objective-C.gitignore & Swift.gitignore
 .DS_Store
+venv/
+.venv/
+*.zip
+SecurityTestApp.zip
+SECURITY_REPORT_*.md
+FINAL_SECURITY_REPORT.md
 
 ## User settings
 xcuserdata/
