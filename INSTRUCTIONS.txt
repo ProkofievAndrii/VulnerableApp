@@ -31,6 +31,7 @@ semgrep scan --config rules/semgrep_rules.yml SecurityTestApp/
 ===== ORCHESTRATOR:
 
 source venv/bin/activate
+python3 orchestrator.py
 
 
 

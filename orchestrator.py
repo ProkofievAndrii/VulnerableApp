@@ -1,13 +1,17 @@
 import os
+import sys
 import zipfile
 import requests
 import json
 import subprocess
 from datetime import datetime
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # --- CONFIG ---
-MOBSF_URL = "http://localhost:8000"
-API_KEY = "1a122a63777930dc140128532b169071c12c99b2e8e34b33c5d505d4c9f35c67"
+MOBSF_URL = os.getenv("MOBSF_URL", "http://localhost:8000")
+API_KEY = os.getenv("MOBSF_API_KEY", "1a122a63777930dc140128532b169071c12c99b2e8e34b33c5d505d4c9f35c67")
 PROJECT_DIR = "SecurityTestApp"
 OUTPUT_ZIP = "SecurityTestApp.zip"
 
@@ -93,10 +97,8 @@ def run_semgrep():
 
 
 def get_code_snippet(file_path, line_number):
-    """Достает строку кода из файла для отчета"""
     try:
         if not os.path.exists(file_path):
-            # Проверка для Semgrep, который может давать относительный путь
             full_path = os.path.join(os.getcwd(), file_path)
         else:
             full_path = file_path
@@ -126,7 +128,6 @@ def generate_final_report(lint_data, semgrep_data, mobsf_data):
     report_content += "## 2. Detailed Findings\n"
     report_content += "---\n"
 
-    # 1. Обработка SwiftLint
     for issue in lint_data:
         file_path = issue['file']
         line = issue['line']
@@ -140,7 +141,6 @@ def generate_final_report(lint_data, semgrep_data, mobsf_data):
         report_content += f"- **Message:** {issue['reason']}\n\n"
         report_content += "---\n"
 
-    # 2. Обработка Semgrep
     for finding in semgrep_data.get('results', []):
         file_path = finding['path']
         line = finding['start']['line']
@@ -157,7 +157,6 @@ def generate_final_report(lint_data, semgrep_data, mobsf_data):
 
     with open(report_filename, "w") as f:
         f.write(report_content)
-    # Сохраняем также как FINAL для удобства
     with open("FINAL_SECURITY_REPORT.md", "w") as f:
         f.write(report_content)
 
@@ -188,11 +187,18 @@ if __name__ == "__main__":
                 mobsf_report = get_mobsf_json_report(file_hash)
                 generate_final_report(lint_results, semgrep_results, mobsf_report)
 
-                print("\n[SUCCESS] Analysis complete.")
-                print(f"[*] Results combined from SwiftLint ({len(lint_results)} issues) and Semgrep.")
-                print("[*] Check FINAL_SECURITY_REPORT.md for details.")
+                total_issues = len(lint_results) + len(semgrep_results.get('results', []))
+
+                if total_issues > 0:
+                    print(f"\n[-] Found vulnerabilities: {total_issues}. Commit/Push is prohibited.")
+                    print("[*] Refer to FINAL_SECURITY_REPORT.md for details.")
+                    sys.exit(1)
+
+                print("\n[SUCCESS] Security check passed. No vulnerabilities found.")
+                sys.exit(0)
             else:
                 print("[-] Critical Error: MobSF scan failed to start.")
+                sys.exit(1)
         else:
             print("[-] Critical Error: Could not get file hash from MobSF.")
 
