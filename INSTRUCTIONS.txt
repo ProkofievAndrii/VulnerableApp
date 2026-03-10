@@ -5,16 +5,29 @@ cd VulnerableApp
 chmod +x setup.sh
 ./setup.sh
 
+===== ENVIRONMENT VARIABLES:
+
+# Create a .env file in the root directory with the strictly formatted content:
+
+MOBSF_HOST=127.0.0.1
+MOBSF_PORT=( YOUR PORT )
+MOBSF_URL=http://localhost:( YOUR PORT )
+DEFAULT_URL=http://localhost:8000
+MOBSF_API_KEY=( YOUR TEMPORARY SESSION API KEY HERE )
+DEFAULT_KEY=( YOUR DEFAULT CUSTOM API KEY HERE )
+PROJECT_DIR=( NAME OF APP )
+OUTPUT_DIR=PROJECT_DIR_NAME+".zip"
+
 ===== DOCKER LAUNCH:
 
 docker run -it --rm \
   -p 8000:8000 \
-  -e MOBSF_API_KEY=1a122a63777930dc140128532b169071c12c99b2e8e34b33c5d505d4c9f35c67 \
+  -e MOBSF_API_KEY=*YOUR TEMP/CUSTOM MOBSF API KEY HERE* \
   opensecurity/mobile-security-framework-mobsf:latest
 
 THEN OPEN LINK:
 
-http://localhost:8000/
+http://localhost:/( YOUR PORT HERE )
 
 WITH mobsf mobsf AS login & password
 
@@ -31,7 +44,21 @@ semgrep scan --config rules/semgrep_rules.yml SecurityTestApp/
 ===== ORCHESTRATOR:
 
 source venv/bin/activate
+# Install required dependencies inside the virtual environment if missing
+pip install python-dotenv requests
 python3 orchestrator.py
 
+===== LOCAL GIT HOOKS SETUP:
 
+# 1. Create a custom directory for trackable git hooks
+mkdir -p .githooks
 
+# 2. Make the pre-commit script executable (required only once after file creation)
+chmod +x .githooks/pre-commit
+
+# 3. Configure Git to use this custom directory instead of the default .git/hooks
+git config core.hooksPath .githooks
+
+# 4. Add the hook to Git index and commit to share the security configuration
+git add .githooks/pre-commit
+git commit -m "Add tracked pre-commit hook for local security checks"

@@ -1,0 +1,24 @@
+#!/bin/sh
+echo "[*] Running local security scan before commit..."
+
+if [ -f .env ]; then
+    export $(grep -v '^#' .env | xargs)
+else
+    echo "[-] Error: The .env file was not found in the project root."
+    exit 1
+fi
+
+nc -z $MOBSF_HOST $MOBSF_PORT
+if [ $? -ne 0 ]; then
+    echo "[-] Error: Local port $MOBSF_PORT is not accessible on host $MOBSF_HOST."
+    echo "[-] Commit aborted. Please start the MobSF Docker container."
+    exit 1
+fi
+
+python3 orchestrator.py
+
+if [ $? -ne 0 ]; then
+    exit 1
+fi
+
+exit 0
