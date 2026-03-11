@@ -62,3 +62,6 @@ git config core.hooksPath .githooks
 # 4. Add the hook to Git index and commit to share the security configuration
 git add .githooks/pre-commit
 git commit -m "Add tracked pre-commit hook for local security checks"
+
+# 5. Use following command to skip pre-commit execution
+git commit -m "Your message" --no-verify

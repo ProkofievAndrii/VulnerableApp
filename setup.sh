@@ -20,11 +20,21 @@ pip install --upgrade pip
 if [ -f requirements.txt ]; then
     pip install -r requirements.txt
 else
-    pip install requests
+    pip install requests python-dotenv
     pip freeze > requirements.txt
 fi
 
-# 4. Docker setup for MobSF
+# 4. Environment Variables Configuration
+echo "[*] Checking .env file..."
+if [ ! -f .env ]; then
+    echo "MOBSF_URL=http://localhost:8000" > .env
+    echo "MOBSF_API_KEY=YOUR_MOBSF_API_KEY_HERE" >> .env
+    echo "PROJECT_DIR=SecurityTestApp" >> .env
+    echo "OUTPUT_DIR=SecurityTestApp.zip" >> .env
+    echo "[+] Created template .env file. Please update it with your API key."
+fi
+
+# 5. Docker setup for MobSF
 if ! command -v docker &> /dev/null; then
     echo "[!] Docker not found. Please install Docker Desktop to run MobSF."
 else
