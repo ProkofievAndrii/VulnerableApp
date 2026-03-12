@@ -6,13 +6,22 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		865756835143C83FD3DE04DF /* Pods_SecurityTestApp.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 48EAF0C6091C6D057A97E374 /* Pods_SecurityTestApp.framework */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXFileReference section */
+		1DEDFE4B1273E3EBCC64DA01 /* Pods-SecurityTestApp.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-SecurityTestApp.debug.xcconfig"; path = "Target Support Files/Pods-SecurityTestApp/Pods-SecurityTestApp.debug.xcconfig"; sourceTree = "<group>"; };
+		48EAF0C6091C6D057A97E374 /* Pods_SecurityTestApp.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_SecurityTestApp.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		C60C162B2F50F6A300269600 /* SecurityTestApp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = SecurityTestApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		F2CC7EDD6C89BFF6D00A9F2A /* Pods-SecurityTestApp.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-SecurityTestApp.release.xcconfig"; path = "Target Support Files/Pods-SecurityTestApp/Pods-SecurityTestApp.release.xcconfig"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		C60C162D2F50F6A300269600 /* SecurityTestApp */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+			);
 			path = SecurityTestApp;
 			sourceTree = "<group>";
 		};
@@ -23,17 +32,38 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				865756835143C83FD3DE04DF /* Pods_SecurityTestApp.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		481A48B6BB93F6B17183ECC8 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				48EAF0C6091C6D057A97E374 /* Pods_SecurityTestApp.framework */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		8BB79FD939666052A3B8A0FA /* Pods */ = {
+			isa = PBXGroup;
+			children = (
+				1DEDFE4B1273E3EBCC64DA01 /* Pods-SecurityTestApp.debug.xcconfig */,
+				F2CC7EDD6C89BFF6D00A9F2A /* Pods-SecurityTestApp.release.xcconfig */,
+			);
+			name = Pods;
+			path = Pods;
+			sourceTree = "<group>";
+		};
 		C60C16222F50F6A300269600 = {
 			isa = PBXGroup;
 			children = (
 				C60C162D2F50F6A300269600 /* SecurityTestApp */,
 				C60C162C2F50F6A300269600 /* Products */,
+				8BB79FD939666052A3B8A0FA /* Pods */,
+				481A48B6BB93F6B17183ECC8 /* Frameworks */,
 			);
 			sourceTree = "<group>";
 		};
@@ -52,9 +82,11 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = C60C16362F50F6A500269600 /* Build configuration list for PBXNativeTarget "SecurityTestApp" */;
 			buildPhases = (
+				BCC2C9D52A3A0873514D7CD8 /* [CP] Check Pods Manifest.lock */,
 				C60C16272F50F6A300269600 /* Sources */,
 				C60C16282F50F6A300269600 /* Frameworks */,
 				C60C16292F50F6A300269600 /* Resources */,
+				B84BDC841E8BFAE0195C676A /* [CP] Embed Pods Frameworks */,
 			);
 			buildRules = (
 			);
@@ -64,8 +96,6 @@
 				C60C162D2F50F6A300269600 /* SecurityTestApp */,
 			);
 			name = SecurityTestApp;
-			packageProductDependencies = (
-			);
 			productName = SecurityTestApp;
 			productReference = C60C162B2F50F6A300269600 /* SecurityTestApp.app */;
 			productType = "com.apple.product-type.application";
@@ -113,6 +143,48 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		B84BDC841E8BFAE0195C676A /* [CP] Embed Pods Frameworks */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+				"${PODS_ROOT}/Target Support Files/Pods-SecurityTestApp/Pods-SecurityTestApp-frameworks-${CONFIGURATION}-input-files.xcfilelist",
+			);
+			name = "[CP] Embed Pods Frameworks";
+			outputFileListPaths = (
+				"${PODS_ROOT}/Target Support Files/Pods-SecurityTestApp/Pods-SecurityTestApp-frameworks-${CONFIGURATION}-output-files.xcfilelist",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-SecurityTestApp/Pods-SecurityTestApp-frameworks.sh\"\n";
+			showEnvVarsInLog = 0;
+		};
+		BCC2C9D52A3A0873514D7CD8 /* [CP] Check Pods Manifest.lock */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+				"${PODS_PODFILE_DIR_PATH}/Podfile.lock",
+				"${PODS_ROOT}/Manifest.lock",
+			);
+			name = "[CP] Check Pods Manifest.lock";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+				"$(DERIVED_FILE_DIR)/Pods-SecurityTestApp-checkManifestLockResult.txt",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "diff \"${PODS_PODFILE_DIR_PATH}/Podfile.lock\" \"${PODS_ROOT}/Manifest.lock\" > /dev/null\nif [ $? != 0 ] ; then\n    # print error to STDERR\n    echo \"error: The sandbox is not in sync with the Podfile.lock. Run 'pod install' or update your CocoaPods installation.\" >&2\n    exit 1\nfi\n# This output is used by Xcode 'outputs' to avoid re-running this script phase.\necho \"SUCCESS\" > \"${SCRIPT_OUTPUT_FILE_0}\"\n";
+			showEnvVarsInLog = 0;
+		};
+/* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		C60C16272F50F6A300269600 /* Sources */ = {
@@ -248,6 +320,7 @@
 		};
 		C60C16372F50F6A500269600 /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 1DEDFE4B1273E3EBCC64DA01 /* Pods-SecurityTestApp.debug.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
@@ -276,6 +349,7 @@
 		};
 		C60C16382F50F6A500269600 /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = F2CC7EDD6C89BFF6D00A9F2A /* Pods-SecurityTestApp.release.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;

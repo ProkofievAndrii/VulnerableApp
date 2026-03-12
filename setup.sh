@@ -9,8 +9,8 @@ if ! command -v brew &> /dev/null; then
 fi
 
 # 2. Dependencies
-echo "[*] Installing SwiftLint and Semgrep via Homebrew..."
-brew install swiftlint semgrep
+echo "[*] Installing SwiftLint, Semgrep, and Dependency-Check via Homebrew..."
+brew install swiftlint semgrep dependency-check
 
 # 3. Python environment
 echo "[*] Setting up Python virtual environment..."

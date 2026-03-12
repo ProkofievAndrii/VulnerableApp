@@ -4,6 +4,7 @@ import subprocess
 import sys
 import zipfile
 import requests
+import tempfile
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -26,7 +27,7 @@ OWASP_STANDARDIZATION = {
 
 def create_zip(source_dir, output_filename):
     print(f"[*] Archiving {source_dir} for MobSF...")
-    exclude_dirs = {'build', '.git', 'venv', 'DerivedData', 'xcuserdata', 'Tests'}
+    exclude_dirs = {'build', '.git', 'venv', 'DerivedData', 'xcuserdata', 'Tests', 'Pods', '.build', 'Carthage'}
 
     with zipfile.ZipFile(output_filename, 'w', zipfile.ZIP_DEFLATED) as zipf:
         for root, dirs, files in os.walk(source_dir):
@@ -117,6 +118,51 @@ def run_semgrep():
         return {}
 
 
+def run_dependency_check():
+    print("[*] Running OWASP Dependency-Check...")
+
+    with tempfile.NamedTemporaryFile(suffix=".json", delete=False) as tmp_file:
+        temp_path = tmp_file.name
+
+    try:
+        result = subprocess.run(
+            [
+                "dependency-check",
+                "--project", PROJECT_DIR,
+                "--scan", PROJECT_DIR,
+                "--format", "JSON",
+                "--out", temp_path,
+                "--disableYarnAudit",
+                "--disableNodeAudit",
+                "--enableExperimental"
+            ],
+            capture_output=True, text=True
+        )
+
+        if result.returncode != 0 or "ERROR" in result.stderr:
+            print(f"[-] ODC Notice/Error: {result.stderr[:500].strip()}")
+
+        if os.path.exists(temp_path):
+            with open(temp_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            os.remove(temp_path)
+            return data
+        return {}
+    except FileNotFoundError:
+        print("[-] Error: dependency-check is not installed. Install via 'brew install dependency-check'.")
+        return {}
+    except json.JSONDecodeError:
+        print("[-] Error: Failed to parse Dependency-Check output.")
+        if os.path.exists(temp_path):
+            os.remove(temp_path)
+        return {}
+    except Exception as err:
+        print(f"[-] Error running dependency-check: {err}")
+        if os.path.exists(temp_path):
+            os.remove(temp_path)
+        return {}
+
+
 def get_code_snippet(file_path, line_number):
     try:
         full_path = file_path if os.path.exists(file_path) else os.path.join(os.getcwd(), file_path)
@@ -129,7 +175,7 @@ def get_code_snippet(file_path, line_number):
     return "Line not found"
 
 
-def generate_final_report(lint_data, semgrep_data, mobsf_data):
+def generate_final_report(lint_data, semgrep_data, mobsf_data, odc_data):
     from datetime import datetime
 
     timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M")
@@ -144,12 +190,24 @@ def generate_final_report(lint_data, semgrep_data, mobsf_data):
         if metadata.get('severity') in ['high', 'warning']:
             m_issues.append((key, finding))
 
+    odc_issues = []
+    for dep in odc_data.get('dependencies', []):
+        file_name = dep.get('fileName', 'Unknown')
+        for vuln in dep.get('vulnerabilities', []):
+            odc_issues.append({
+                'file': file_name,
+                'cve': vuln.get('name', 'N/A'),
+                'severity': vuln.get('severity', 'UNKNOWN'),
+                'description': vuln.get('description', 'No description')
+            })
+
     report_content = "# Detailed Security Analysis Report\n"
     report_content += f"**Date:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
 
     report_content += "## 1. Executive Summary\n\n"
     report_content += f"- **SwiftLint Issues:** {len(lint_data)}\n"
     report_content += f"- **Semgrep Issues:** {len(semgrep_data.get('results', []))}\n"
+    report_content += f"- **OWASP Dependency-Check Issues:** {len(odc_issues)}\n"
     report_content += f"- **MobSF Issues:** {len(m_issues)}\n\n"
 
     report_content += "## 2. Detailed Findings\n\n"
@@ -174,6 +232,14 @@ def generate_final_report(lint_data, semgrep_data, mobsf_data):
         report_content += f"- **File:** `{file_path}` (Line: {line}, Char: {character})\n"
         report_content += f"- **Code:** `{code_snippet}`\n"
         report_content += f"- **Message:** {issue['reason']}\n\n"
+        report_content += "---\n\n"
+
+    for issue in odc_issues:
+        report_content += f"### [M2] {issue['cve']} in {issue['file']}\n\n"
+        report_content += f"- **Tool:** OWASP Dependency-Check\n"
+        report_content += f"- **Severity:** {issue['severity']}\n"
+        report_content += f"- **File:** `{issue['file']}`\n"
+        report_content += f"- **Description:** {issue['description']}\n\n"
         report_content += "---\n\n"
 
     for finding in semgrep_data.get('results', []):
@@ -237,6 +303,7 @@ if __name__ == "__main__":
         print("=== Security Orchestration Started ===")
         lint_results = run_swiftlint()
         semgrep_results = run_semgrep()
+        odc_results = run_dependency_check()
 
         if os.path.exists(PROJECT_DIR):
             create_zip(PROJECT_DIR, OUTPUT_ZIP)
@@ -248,7 +315,7 @@ if __name__ == "__main__":
         if file_hash:
             if start_scan(file_hash):
                 mobsf_report = get_mobsf_json_report(file_hash)
-                m_count = generate_final_report(lint_results, semgrep_results, mobsf_report)
+                m_count = generate_final_report(lint_results, semgrep_results, mobsf_report, odc_results)
 
                 total_issues = len(lint_results) + len(semgrep_results.get('results', [])) + m_count
                 if total_issues > 0:
