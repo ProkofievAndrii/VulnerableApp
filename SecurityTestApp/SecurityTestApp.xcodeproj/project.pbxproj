@@ -8,7 +8,6 @@
 
 /* Begin PBXBuildFile section */
 		865756835143C83FD3DE04DF /* Pods_SecurityTestApp.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 48EAF0C6091C6D057A97E374 /* Pods_SecurityTestApp.framework */; };
-		C60F35FA2F6639D6001B5750 /* Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = C60F35F92F6639D6001B5750 /* Info.plist */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -87,6 +86,7 @@
 				C60C16282F50F6A300269600 /* Frameworks */,
 				C60C16292F50F6A300269600 /* Resources */,
 				B84BDC841E8BFAE0195C676A /* [CP] Embed Pods Frameworks */,
+				C68B32032F6735050049CBBE /* SwiftLint */,
 			);
 			buildRules = (
 			);
@@ -139,7 +139,6 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				C60F35FA2F6639D6001B5750 /* Info.plist in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -188,6 +187,24 @@
 			shellPath = /bin/sh;
 			shellScript = "diff \"${PODS_PODFILE_DIR_PATH}/Podfile.lock\" \"${PODS_ROOT}/Manifest.lock\" > /dev/null\nif [ $? != 0 ] ; then\n    # print error to STDERR\n    echo \"error: The sandbox is not in sync with the Podfile.lock. Run 'pod install' or update your CocoaPods installation.\" >&2\n    exit 1\nfi\n# This output is used by Xcode 'outputs' to avoid re-running this script phase.\necho \"SUCCESS\" > \"${SCRIPT_OUTPUT_FILE_0}\"\n";
 			showEnvVarsInLog = 0;
+		};
+		C68B32032F6735050049CBBE /* SwiftLint */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = SwiftLint;
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "# Type a script or drag a script file from your workspace to insert its path.\nexport PATH=\"$PATH:/opt/homebrew/bin\"\nif which swiftlint >/dev/null; then\n  swiftlint --config \"$PROJECT_DIR/../rules/swiftlint.yml\"\nelse\n  echo \"warning: SwiftLint not installed, download from https://github.com/realm/SwiftLint\"\nfi\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 
