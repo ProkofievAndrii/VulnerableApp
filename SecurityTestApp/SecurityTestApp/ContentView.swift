@@ -16,18 +16,47 @@ struct ContentView: View {
     @State private var username = ""
     @State private var password = ""
     @State private var statusMessage = ""
+    
+    let authService = AuthenticationService()
+    let dbService = DatabaseService()
+    let webService = WebViewService()
 
     var body: some View {
-        Form {
-            Section(header: Text("Authentication")) {
-                TextField("Username", text: $username)
-                SecureField("Password", text: $password)
-                Button("Login") {
-                    performInsecureLogin()
+        NavigationView {
+            Form {
+                Section(header: Text("Basic Auth (M1, M5, M9, M10)")) {
+                    TextField("Username", text: $username)
+                    SecureField("Password", text: $password)
+                    Button("Login (Insecure)") {
+                        performInsecureLogin()
+                    }
+                }
+                
+                Section(header: Text("Biometrics & Auth (M3)")) {
+                    Button("Login with FaceID / TouchID") {
+                        authService.authenticateUser()
+                    }
+                    Button("Validate Admin JWT") {
+                        let dummyToken = "header.eyJyb2xlIjoiYWRtaW4ifQ==.signature"
+                        let _ = authService.validateAdminAccess(jwtToken: dummyToken)
+                    }
+                }
+                
+                Section(header: Text("Input/Output Validation (M4)")) {
+                    Button("Trigger SQL Injection") {
+                        dbService.getUserData(username: username)
+                    }
+                    Button("Trigger XSS in WebView") {
+                        webService.injectUserContent(userInput: username)
+                    }
+                }
+                
+                Section {
+                    Text(statusMessage)
+                        .foregroundColor(.red)
                 }
             }
-            Text(statusMessage)
-                .foregroundColor(.red)
+            .navigationTitle("Security Test App")
         }
     }
 

@@ -24,3 +24,105 @@ rules:
     paths:
       include: ["*.plist"]
     severity: ERROR
+
+  - id: insecure-biometrics
+    patterns:
+      - pattern: $CONTEXT.evaluatePolicy(...)
+    message: "Insecure Authentication (OWASP M3). Local authentication relies on boolean evaluation. Use Keychain Services with access control flags (SecAccessControl) to cryptographically bind session tokens to biometrics."
+    languages:
+      - swift
+    severity: WARNING
+
+  - id: insecure-webview-evaluation
+    patterns:
+      - pattern-inside: |
+          $CODE = "... \($X) ..."
+          ...
+          $WEBVIEW.evaluateJavaScript($CODE, ...)
+      - pattern: $WEBVIEW.evaluateJavaScript(...)
+    message: "Insufficient Output Validation (OWASP M4). Executing unsanitized dynamic strings in WKWebView can lead to Cross-Site Scripting (XSS)."
+    languages: [swift]
+    severity: ERROR
+
+  - id: sql-injection-swift
+    patterns:
+      - pattern-regex: '(?i)(SELECT|INSERT|UPDATE|DELETE).*\\\(.*?\)'
+    message: "Insufficient Input Validation (OWASP M4). String interpolation in SQL queries leads to SQL Injection. Use parameterized queries instead."
+    languages: [swift]
+    severity: ERROR
+
+  - id: jwt-unverified-signature
+    patterns:
+      - pattern: |
+          let $SEGMENTS = $TOKEN.components(separatedBy: ".")
+          ...
+          let $PAYLOAD = $SEGMENTS[1]
+          ...
+    message: "Insecure Authorization (OWASP M3). Decoding JWT payload without verifying its cryptographic signature allows privilege escalation."
+    languages: [swift]
+    severity: ERROR
+
+  - id: insecure-keychain-accessibility
+    patterns:
+      - pattern-either:
+          - pattern: kSecAttrAccessibleAlways
+          - pattern: kSecAttrAccessibleAlwaysThisDeviceOnly
+    message: "Insecure Authentication (OWASP M3). Using kSecAttrAccessibleAlways allows extraction of keychain items even when the device is locked."
+    languages: [swift]
+    severity: ERROR
+
+  - id: tainted-webview-evaluation
+    mode: taint
+    pattern-sources:
+      - patterns:
+          - pattern: "func $F(..., $ARG: String, ...) { ... }"
+          - focus-metavariable: $ARG
+    pattern-sinks:
+      - pattern: $WEBVIEW.evaluateJavaScript(...)
+    pattern-sanitizers:
+      - pattern: sanitizeForHtml(...)
+    message: "Taint Analysis (OWASP M4): Untrusted data flows from an external source into WKWebView evaluation without sanitization. This leads to XSS."
+    languages: [swift]
+    severity: ERROR
+
+  - id: tainted-sql-injection
+    mode: taint
+    pattern-sources:
+      - patterns:
+          - pattern: "func $F(..., $ARG: String, ...) { ... }"
+          - focus-metavariable: $ARG
+    pattern-sinks:
+      - pattern-either:
+          - pattern: '"SELECT ... \($X) ..."'
+          - pattern: '"INSERT ... \($X) ..."'
+          - pattern: '"UPDATE ... \($X) ..."'
+          - pattern: '"DELETE ... \($X) ..."'
+    message: "Taint Analysis (OWASP M4): Untrusted string variable flows directly into a SQL query interpolation. Use parameterized queries."
+    languages: [swift]
+    severity: ERROR
+
+  - id: tainted-sql-injection
+    mode: taint
+    pattern-sources:
+      - patterns:
+          - pattern: "func $F(..., $ARG: String, ...) { ... }"
+          - focus-metavariable: $ARG
+    pattern-sinks:
+      - pattern-regex: '(?i)(SELECT|INSERT|UPDATE|DELETE).*\\\(.*?\)'
+    message: "Taint Analysis (OWASP M4): Untrusted string variable flows directly into a SQL query interpolation. Use parameterized queries."
+    languages: [ swift ]
+    severity: ERROR
+
+  - id: insecure-local-storage
+    patterns:
+      - pattern: "$DATA.write(to: $URL, atomically: $BOOL, encoding: $ENC)"
+    message: "Insecure Data Storage (OWASP M9). Writing data directly to the file system may expose sensitive information. Use Keychain or encrypted CoreData/Realm."
+    languages: [swift]
+    severity: ERROR
+
+  - id: insecure-userdefaults
+    patterns:
+      - pattern: "UserDefaults.standard.set($VAL, forKey: $KEY)"
+    message: "Insecure Data Storage (OWASP M9). UserDefaults stores data in plain text. Do not use it for passwords or tokens."
+    languages: [swift]
+    severity: WARNING
