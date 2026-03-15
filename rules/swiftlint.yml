@@ -1,6 +1,9 @@
 disabled_rules:
   - trailing_whitespace
 
+opt_in_rules:
+  - force_unwrapping
+
 custom_rules:
   no_print_statements:
     name: "No print statements"

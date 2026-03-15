@@ -1,5 +1,7 @@
 rules:
   # M1: Improper Credential Usage
+
+  # Detect hardcoded variables by keywords (api, secret, token, etc.)
   - id: hardcoded-api-key
     patterns:
       - pattern: let $KEY = "..."
@@ -10,15 +12,28 @@ rules:
     languages: [swift]
     severity: WARNING
 
+  # Scan configuration files (.plist) for exposed tokens and keys
+  - id: plist-hardcoded-secret
+    patterns:
+      - pattern-regex: '(?i)<key>.*(secret|token|password|key|aws).*</key>\s*<string>[^<]+</string>'
+    message: "Improper Credential Usage (OWASP M1). Sensitive data or keys found in plist file. Attackers can easily extract these from the application bundle."
+    languages: [generic]
+    paths:
+      include: ["*.plist"]
+    severity: ERROR
+
+
   # M3: Insecure Authentication and Authorization
+
+  # Detect biometric authentication relying solely on a boolean value
   - id: insecure-biometrics
     patterns:
       - pattern: $CONTEXT.evaluatePolicy(...)
     message: "Insecure Authentication (OWASP M3). Local authentication relies on boolean evaluation. Use Keychain Services with access control flags (SecAccessControl) to cryptographically bind session tokens to biometrics."
-    languages:
-      - swift
+    languages: [swift]
     severity: WARNING
 
+  # Detect parsing of JWT payload without verifying the cryptographic signature
   - id: jwt-unverified-signature
     patterns:
       - pattern: |
@@ -30,6 +45,7 @@ rules:
     languages: [swift]
     severity: ERROR
 
+  # Find Keychain flags allowing data read even when the device is locked
   - id: insecure-keychain-accessibility
     patterns:
       - pattern-either:
@@ -39,14 +55,26 @@ rules:
     languages: [swift]
     severity: ERROR
 
+  # Find weak Access Control Lists (ACL) allowing any enrolled fingerprints/faces
   - id: insecure-biometry-acl
     patterns:
       - pattern: ".biometryAny"
     message: "Insecure Authentication (OWASP M3). Using .biometryAny allows authentication with any enrolled biometric, including those added by an attacker after device compromise. Use .biometryCurrentSet."
-    languages: [ swift ]
+    languages: [swift]
     severity: ERROR
 
+  # Detect the use of hardware device identifiers for authentication
+  - id: insecure-device-identifier
+    patterns:
+      - pattern: "UIDevice.current.identifierForVendor"
+    message: "Insecure Authentication (OWASP M3). Device identifiers can be spoofed and should not be used for authentication or as session tokens."
+    languages: [swift]
+    severity: ERROR
+
+
   # M4: Insufficient Input/Output Validation
+
+  # Detect direct string injection into WKWebView without validation (XSS)
   - id: insecure-webview-evaluation
     patterns:
       - pattern-inside: |
@@ -58,6 +86,7 @@ rules:
     languages: [swift]
     severity: ERROR
 
+  # Detect SQL queries built via string interpolation (SQLi)
   - id: sql-injection-swift
     patterns:
       - pattern-regex: '(?i)(SELECT|INSERT|UPDATE|DELETE).*\\\(.*?\)'
@@ -65,6 +94,7 @@ rules:
     languages: [swift]
     severity: ERROR
 
+  # Taint analysis track untrusted data from function arguments to WKWebView
   - id: tainted-webview-evaluation
     mode: taint
     pattern-sources:
@@ -79,6 +109,7 @@ rules:
     languages: [swift]
     severity: ERROR
 
+  # Taint analysis track untrusted data from function arguments to SQL queries
   - id: tainted-sql-injection
     mode: taint
     pattern-sources:
@@ -91,23 +122,31 @@ rules:
           - pattern: '"INSERT ... \($X) ..."'
           - pattern: '"UPDATE ... \($X) ..."'
           - pattern: '"DELETE ... \($X) ..."'
+          - pattern-regex: '(?i)(SELECT|INSERT|UPDATE|DELETE).*\\\(.*?\)'
     message: "Taint Analysis (OWASP M4): Untrusted string variable flows directly into a SQL query interpolation. Use parameterized queries."
     languages: [swift]
     severity: ERROR
 
-  - id: tainted-sql-injection
+  # Taint analysis track user input flowing into file system paths (Path Traversal)
+  - id: tainted-path-traversal
     mode: taint
     pattern-sources:
       - patterns:
           - pattern: "func $F(..., $ARG: String, ...) { ... }"
           - focus-metavariable: $ARG
     pattern-sinks:
-      - pattern-regex: '(?i)(SELECT|INSERT|UPDATE|DELETE).*\\\(.*?\)'
-    message: "Taint Analysis (OWASP M4): Untrusted string variable flows directly into a SQL query interpolation. Use parameterized queries."
-    languages: [ swift ]
+      - pattern-either:
+          - pattern: "FileManager.default.contents(atPath: $X)"
+          - pattern: 'FileManager.default.contents(atPath: "\($X)")'
+          - pattern: "$ANY_VAR.contents(atPath: $X)"
+    message: "Insufficient Input Validation (OWASP M4). Untrusted input flows into FileManager, leading to Path Traversal vulnerabilities."
+    languages: [swift]
     severity: ERROR
 
+
   # M5: Insecure Communication
+
+  # Check for disabled App Transport Security mechanism (allowing HTTP traffic)
   - id: insecure-ats-configuration
     languages: [generic]
     patterns:
@@ -117,7 +156,32 @@ rules:
       include: ["*.plist"]
     severity: ERROR
 
+  # Detect programmatic bypass of SSL certificate validation (.useCredential)
+  - id: insecure-ssl-validation-bypass
+    patterns:
+      - pattern: "$HANDLER(.useCredential, ...)"
+    message: "Insecure Communication (OWASP M5). Bypassing SSL validation allows Man-in-the-Middle (MITM) attacks. Remove this code before release."
+    languages: [swift]
+    severity: ERROR
+
+
+  # M6: Insecure Authorization
+
+  # Detect client-side hardcoded role checks that are easily bypassed in memory
+  - id: insecure-local-authorization-role
+    patterns:
+      - pattern-either:
+          - pattern: "$X == .admin"
+          - pattern: "$X == .superuser"
+          - pattern: "$X == \"admin\""
+    message: "Insecure Authorization (OWASP M6). Client-side role checks can be bypassed by memory manipulation. Validate privileges on the server."
+    languages: [swift]
+    severity: ERROR
+
+
   # M9: Insecure Data Storage
+
+  # Detect direct writing of data to files without encryption
   - id: insecure-local-storage
     patterns:
       - pattern: "$DATA.write(to: $URL, atomically: $BOOL, encoding: $ENC)"
@@ -125,6 +189,7 @@ rules:
     languages: [swift]
     severity: ERROR
 
+  # Detect the use of unencrypted UserDefaults storage for sensitive data
   - id: insecure-userdefaults
     patterns:
       - pattern: "UserDefaults.standard.set($VAL, forKey: $KEY)"
@@ -132,21 +197,26 @@ rules:
     languages: [swift]
     severity: WARNING
 
+  # Prevent data leakage to the iOS global pasteboard
   - id: insecure-pasteboard
     patterns:
       - pattern: "UIPasteboard.general.string = $X"
     message: "Insecure Data Storage (OWASP M9). Sensitive data copied to the global pasteboard can be read by other applications."
-    languages: [ swift ]
+    languages: [swift]
     severity: WARNING
 
+  # Detect the use of weakly isolated App Groups shared containers
   - id: insecure-app-group
     patterns:
       - pattern: "UserDefaults(suiteName: $NAME)"
     message: "Insecure Data Storage (OWASP M9). App Groups (UserDefaults with suiteName) have lower isolation. Ensure sensitive data is encrypted before storing."
-    languages: [ swift ]
+    languages: [swift]
     severity: WARNING
 
+
   # M10: Insufficient Cryptography
+
+  # Block calls to the deprecated and broken MD5 hashing algorithm
   - id: insecure-md5-hashing
     patterns:
       - pattern: CC_MD5(...)
@@ -154,6 +224,7 @@ rules:
     languages: [swift]
     severity: ERROR
 
+  # Detect the use of non-cryptographically secure random number generators
   - id: weak-rng
     patterns:
       - pattern-either:
@@ -161,5 +232,22 @@ rules:
           - pattern: "arc4random(...)"
           - pattern: "SystemRandomNumberGenerator(...)"
     message: "Insufficient Cryptography (OWASP M10). Weak random number generator detected. Use SecRandomCopyBytes or CryptoKit for security-sensitive values."
+    languages: [swift]
+    severity: ERROR
+
+  # Detect hardcoded Initialization Vectors (IV) using regular expressions
+  - id: hardcoded-iv
+    patterns:
+        - pattern-either:
+          - pattern: let $IV = "..."
+          - pattern: var $IV = "..."
+          - pattern: let $IV = "...".$METHOD(...)
+          - pattern: var $IV = "...".$METHOD(...)
+          - pattern: let $IV = "...".$METHOD(...)!
+          - pattern: var $IV = "...".$METHOD(...)!
+          - metavariable-regex:
+              metavariable: "$IV"
+              regex: "(?i)(.*iv.*|.*initializationvector.*)"
+    message: "Insufficient Cryptography (OWASP M10). Hardcoded Initialization Vector (IV) detected. IVs must be random and unique for each encryption session."
     languages: [ swift ]
     severity: ERROR

@@ -1,7 +1,9 @@
-import Foundation
-import WebKit
-import LocalAuthentication
-import Security
+//
+//  VulnerableServices.swift
+//  VulnerableServices
+//
+//  Created by Andrii Prokofiev on 26.02.2026.
+//
 
 import Foundation
 import WebKit
@@ -151,5 +153,44 @@ class StorageService {
         if let sharedDefaults = UserDefaults(suiteName: "group.com.myapp.shared") {
             sharedDefaults.set(data, forKey: "shared_secret")
         }
+    }
+}
+
+// M6: Insecure Authorization
+enum UserRole {
+    case admin
+    case guest
+}
+
+class AdvancedVulnerabilitiesService: NSObject, URLSessionDelegate {
+    
+    // M3: Insecure Authentication (Device ID)
+    // M7: Client Code Quality (Force Unwrapping "!")
+    func getSessionToken() -> String {
+        return UIDevice.current.identifierForVendor!.uuidString
+    }
+
+    // M6: Insecure Authorization (Client-side role check)
+    func performAdminAction(role: UserRole) {
+        if role == .admin {
+            print("DEBUG: Admin action performed based on client-side check")
+        }
+    }
+
+    // M4: Insufficient Input Validation (Path Traversal)
+    func readLocalFile(userInputPath: String) {
+        let fileManager = FileManager.default
+        let _ = fileManager.contents(atPath: userInputPath)
+    }
+
+    // M5: Insecure Communication (SSL Bypass)
+    func urlSession(_ session: URLSession, didReceive challenge: URLAuthenticationChallenge, completionHandler: @escaping (URLSession.AuthChallengeDisposition, URLCredential?) -> Void) {
+        completionHandler(.useCredential, nil)
+    }
+
+    // M10: Insufficient Cryptography (Hardcoded IV)
+    func encryptData() {
+        let staticIV = "1234567890123456".data(using: .utf8)!
+        print("DEBUG: Using static IV - \(staticIV)")
     }
 }

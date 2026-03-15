@@ -9,6 +9,9 @@
 -->
 <plist version="1.0">
 <dict>
+    <key>AWS_SECRET_KEY</key>
+    <string>AKIAIOSFODNN7EXAMPLE</string>
+
     <key>NSAppTransportSecurity</key>
     <dict>
         <key>NSAllowsArbitraryLoads</key>

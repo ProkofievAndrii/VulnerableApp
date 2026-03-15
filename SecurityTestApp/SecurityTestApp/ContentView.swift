@@ -8,16 +8,6 @@
 import SwiftUI
 import CommonCrypto
 
-//
-//  ContentView.swift
-//  SecurityTestApp
-//
-//  Created by Andrii Prokofiev on 26.02.2026.
-//
-
-import SwiftUI
-import CommonCrypto
-
 struct ContentView: View {
     // M1: Improper Credential Usage
     let apiSecret = "AIzaSyB-83492_asD9238492n3asD_231908"
