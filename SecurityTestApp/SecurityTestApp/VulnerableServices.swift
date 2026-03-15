@@ -3,6 +3,12 @@ import WebKit
 import LocalAuthentication
 import Security
 
+import Foundation
+import WebKit
+import LocalAuthentication
+import Security
+import UIKit
+
 class AuthenticationService {
     
     // M3: Insecure Authentication (Biometrics Bypass)
@@ -55,6 +61,24 @@ class AuthenticationService {
         ]
         
         SecItemAdd(query as CFDictionary, nil)
+    }
+
+    // M3: Insecure Authentication (Weak Biometry ACL)
+    func createWeakBiometricKey() {
+        // Vulnerability: .biometryAny allows access to any fingerprints, including those added after device compromise
+        let access = SecAccessControlCreateWithFlags(
+            nil,
+            kSecAttrAccessibleWhenUnlocked,
+            .biometryAny,
+            nil
+        )
+    }
+
+    // M10: Insufficient Cryptography (Weak RNG)
+    func generateSessionToken() -> String {
+        // Vulnerability: Int.random is not a cryptographically secure generator
+        let randomInt = Int.random(in: 1000...9999)
+        return "TOKEN_\(randomInt)"
     }
 }
 
@@ -113,5 +137,19 @@ class StorageService {
     func saveTokenToUserDefaults(token: String) {
         // Vulnerability: UserDefaults is not encrypted and can be easily extracted
         UserDefaults.standard.set(token, forKey: "user_auth_token")
+    }
+
+    // M9: Insecure Data Storage (Pasteboard)
+    func copyToClipboard(sensitiveData: String) {
+        // Vulnerability: Global pasteboard is accessible to other applications
+        UIPasteboard.general.string = sensitiveData
+    }
+
+    // M9: Insecure Data Storage (App Groups)
+    func saveToSharedContainer(data: String) {
+        // Vulnerability: Shared containers have reduced sandbox isolation
+        if let sharedDefaults = UserDefaults(suiteName: "group.com.myapp.shared") {
+            sharedDefaults.set(data, forKey: "shared_secret")
+        }
     }
 }

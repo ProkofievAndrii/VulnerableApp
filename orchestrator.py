@@ -14,60 +14,47 @@ API_KEY = os.getenv("MOBSF_API_KEY", "DEFAULT_KEY")
 PROJECT_DIR = os.getenv("PROJECT_DIR", "App")
 OUTPUT_ZIP = os.getenv("OUTPUT_DIR", "App.zip")
 OWASP_STANDARDIZATION = {
-    # M1: Improper Credential Usage
+    # M1
     "rules.hardcoded-api-key": "M1",
-    "hardcoded-api-key": "M1",
     "ios_hardcoded_info": "M1",
-
-    # M2: Inadequate Supply Chain Security
+    # M2
     "cve_dependency_vulnerability": "M2",
-    "rules.inadequate-supply-chain-afnetworking": "M2",
-    "inadequate-supply-chain-afnetworking": "M2",
-
-    # M3: Insecure Authentication / Authorization
+    # M3
     "rules.insecure-biometrics": "M3",
-    "insecure-biometrics": "M3",
     "rules.jwt-unverified-signature": "M3",
-    "jwt-unverified-signature": "M3",
     "rules.insecure-keychain-accessibility": "M3",
-    "insecure-keychain-accessibility": "M3",
+    "rules.insecure-biometry-acl": "M3",
     "ios_biometric_bool": "M3",
     "ios_keychain_weak_accessibility_value": "M3",
-
-    # M4: Insufficient Input/Output Validation
+    "ios_biometric_acl": "M3",
+    # M4
     "rules.insecure-webview-evaluation": "M4",
-    "insecure-webview-evaluation": "M4",
-    "rules.tainted-webview-evaluation": "M4",
-    "tainted-webview-evaluation": "M4",
     "rules.sql-injection-swift": "M4",
-    "sql-injection-swift": "M4",
     "rules.tainted-sql-injection": "M4",
-    "tainted-sql-injection": "M4",
+    "rules.tainted-webview-evaluation": "M4",
     "ios_webview_disable_js": "M4",
-
-    # M5: Insecure Communication
+    # M5
     "no_http_urls": "M5",
     "rules.insecure-ats-configuration": "M5",
-    "insecure-ats-configuration": "M5",
-
-    # M9: Insecure Data Storage
+    # M9
     "no_print_statements": "M9",
     "no_user_defaults": "M9",
-    "insecure-local-storage": "M9",
     "rules.insecure-local-storage": "M9",
-    "insecure-userdefaults": "M9",
     "rules.insecure-userdefaults": "M9",
-
-    # M10: Insufficient Cryptography
+    "rules.insecure-pasteboard": "M9",
+    "rules.insecure-app-group": "M9",
+    "ios_uipaste_sec": "M9",
+    # M10
     "rules.insecure-md5-hashing": "M10",
-    "insecure-md5-hashing": "M10",
+    "rules.weak-rng": "M10",
     "ios_swift_md5_collision": "M10",
-
-    # Linter rules fallback
+    "ios_insecure_random_no_generator": "M10",
+    # Linter
     "colon": "M5/M9",
+    "duplicate_imports": "M5/M9",
+    "redundant_discardable_let": "M5/M9",
     "line_length": "M5/M9",
-    "unused_closure_parameter": "M5/M9",
-    "redundant_discardable_let": "M5/M9"
+    "unused_closure_parameter": "M5/M9"
 }
 
 

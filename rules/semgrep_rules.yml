@@ -1,11 +1,5 @@
 rules:
-  - id: insecure-md5-hashing
-    patterns:
-      - pattern: CC_MD5(...)
-    message: "Insecure MD5 hashing detected (OWASP M10). MD5 is cryptographically broken and should not be used for sensitive data. Use CryptoKit and SHA-256 or stronger."
-    languages: [swift]
-    severity: ERROR
-
+  # M1: Improper Credential Usage
   - id: hardcoded-api-key
     patterns:
       - pattern: let $KEY = "..."
@@ -15,16 +9,8 @@ rules:
     message: "Potential hardcoded credential detected (OWASP M1). Move secrets to a secure storage like Keychain or use Environment Variables."
     languages: [swift]
     severity: WARNING
-    
-  - id: insecure-ats-configuration
-    languages: [generic]
-    patterns:
-      - pattern: <key>NSAllowsArbitraryLoads</key><true/>
-    message: "App Transport Security (ATS) is disabled (OWASP M5). This allows insecure HTTP connections."
-    paths:
-      include: ["*.plist"]
-    severity: ERROR
 
+  # M3: Insecure Authentication and Authorization
   - id: insecure-biometrics
     patterns:
       - pattern: $CONTEXT.evaluatePolicy(...)
@@ -32,24 +18,6 @@ rules:
     languages:
       - swift
     severity: WARNING
-
-  - id: insecure-webview-evaluation
-    patterns:
-      - pattern-inside: |
-          $CODE = "... \($X) ..."
-          ...
-          $WEBVIEW.evaluateJavaScript($CODE, ...)
-      - pattern: $WEBVIEW.evaluateJavaScript(...)
-    message: "Insufficient Output Validation (OWASP M4). Executing unsanitized dynamic strings in WKWebView can lead to Cross-Site Scripting (XSS)."
-    languages: [swift]
-    severity: ERROR
-
-  - id: sql-injection-swift
-    patterns:
-      - pattern-regex: '(?i)(SELECT|INSERT|UPDATE|DELETE).*\\\(.*?\)'
-    message: "Insufficient Input Validation (OWASP M4). String interpolation in SQL queries leads to SQL Injection. Use parameterized queries instead."
-    languages: [swift]
-    severity: ERROR
 
   - id: jwt-unverified-signature
     patterns:
@@ -68,6 +36,32 @@ rules:
           - pattern: kSecAttrAccessibleAlways
           - pattern: kSecAttrAccessibleAlwaysThisDeviceOnly
     message: "Insecure Authentication (OWASP M3). Using kSecAttrAccessibleAlways allows extraction of keychain items even when the device is locked."
+    languages: [swift]
+    severity: ERROR
+
+  - id: insecure-biometry-acl
+    patterns:
+      - pattern: ".biometryAny"
+    message: "Insecure Authentication (OWASP M3). Using .biometryAny allows authentication with any enrolled biometric, including those added by an attacker after device compromise. Use .biometryCurrentSet."
+    languages: [ swift ]
+    severity: ERROR
+
+  # M4: Insufficient Input/Output Validation
+  - id: insecure-webview-evaluation
+    patterns:
+      - pattern-inside: |
+          $CODE = "... \($X) ..."
+          ...
+          $WEBVIEW.evaluateJavaScript($CODE, ...)
+      - pattern: $WEBVIEW.evaluateJavaScript(...)
+    message: "Insufficient Output Validation (OWASP M4). Executing unsanitized dynamic strings in WKWebView can lead to Cross-Site Scripting (XSS)."
+    languages: [swift]
+    severity: ERROR
+
+  - id: sql-injection-swift
+    patterns:
+      - pattern-regex: '(?i)(SELECT|INSERT|UPDATE|DELETE).*\\\(.*?\)'
+    message: "Insufficient Input Validation (OWASP M4). String interpolation in SQL queries leads to SQL Injection. Use parameterized queries instead."
     languages: [swift]
     severity: ERROR
 
@@ -113,6 +107,17 @@ rules:
     languages: [ swift ]
     severity: ERROR
 
+  # M5: Insecure Communication
+  - id: insecure-ats-configuration
+    languages: [generic]
+    patterns:
+      - pattern: <key>NSAllowsArbitraryLoads</key><true/>
+    message: "App Transport Security (ATS) is disabled (OWASP M5). This allows insecure HTTP connections."
+    paths:
+      include: ["*.plist"]
+    severity: ERROR
+
+  # M9: Insecure Data Storage
   - id: insecure-local-storage
     patterns:
       - pattern: "$DATA.write(to: $URL, atomically: $BOOL, encoding: $ENC)"
@@ -126,3 +131,35 @@ rules:
     message: "Insecure Data Storage (OWASP M9). UserDefaults stores data in plain text. Do not use it for passwords or tokens."
     languages: [swift]
     severity: WARNING
+
+  - id: insecure-pasteboard
+    patterns:
+      - pattern: "UIPasteboard.general.string = $X"
+    message: "Insecure Data Storage (OWASP M9). Sensitive data copied to the global pasteboard can be read by other applications."
+    languages: [ swift ]
+    severity: WARNING
+
+  - id: insecure-app-group
+    patterns:
+      - pattern: "UserDefaults(suiteName: $NAME)"
+    message: "Insecure Data Storage (OWASP M9). App Groups (UserDefaults with suiteName) have lower isolation. Ensure sensitive data is encrypted before storing."
+    languages: [ swift ]
+    severity: WARNING
+
+  # M10: Insufficient Cryptography
+  - id: insecure-md5-hashing
+    patterns:
+      - pattern: CC_MD5(...)
+    message: "Insecure MD5 hashing detected (OWASP M10). MD5 is cryptographically broken and should not be used for sensitive data. Use CryptoKit and SHA-256 or stronger."
+    languages: [swift]
+    severity: ERROR
+
+  - id: weak-rng
+    patterns:
+      - pattern-either:
+          - pattern: "Int.random(...)"
+          - pattern: "arc4random(...)"
+          - pattern: "SystemRandomNumberGenerator(...)"
+    message: "Insufficient Cryptography (OWASP M10). Weak random number generator detected. Use SecRandomCopyBytes or CryptoKit for security-sensitive values."
+    languages: [ swift ]
+    severity: ERROR

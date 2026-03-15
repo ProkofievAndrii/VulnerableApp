@@ -8,6 +8,16 @@
 import SwiftUI
 import CommonCrypto
 
+//
+//  ContentView.swift
+//  SecurityTestApp
+//
+//  Created by Andrii Prokofiev on 26.02.2026.
+//
+
+import SwiftUI
+import CommonCrypto
+
 struct ContentView: View {
     // M1: Improper Credential Usage
     let apiSecret = "AIzaSyB-83492_asD9238492n3asD_231908"
@@ -20,6 +30,7 @@ struct ContentView: View {
     let authService = AuthenticationService()
     let dbService = DatabaseService()
     let webService = WebViewService()
+    let storageService = StorageService()
 
     var body: some View {
         NavigationView {
@@ -40,6 +51,9 @@ struct ContentView: View {
                         let dummyToken = "header.eyJyb2xlIjoiYWRtaW4ifQ==.signature"
                         let _ = authService.validateAdminAccess(jwtToken: dummyToken)
                     }
+                    Button("Create Weak Biometry Key") {
+                        authService.createWeakBiometricKey()
+                    }
                 }
                 
                 Section(header: Text("Input/Output Validation (M4)")) {
@@ -48,6 +62,21 @@ struct ContentView: View {
                     }
                     Button("Trigger XSS in WebView") {
                         webService.injectUserContent(userInput: username)
+                    }
+                }
+
+                Section(header: Text("Advanced Data & Crypto (M9, M10)")) {
+                    Button("Copy Password to Clipboard") {
+                        storageService.copyToClipboard(sensitiveData: password)
+                        statusMessage = "Password copied to pasteboard!"
+                    }
+                    Button("Save to Shared App Group") {
+                        storageService.saveToSharedContainer(data: password)
+                        statusMessage = "Saved to vulnerable App Group"
+                    }
+                    Button("Generate Weak Token") {
+                        let token = authService.generateSessionToken()
+                        statusMessage = "Weak token generated: \(token)"
                     }
                 }
                 
