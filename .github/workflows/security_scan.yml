@@ -23,7 +23,7 @@ jobs:
 
       - name: Install System Dependencies
         run: |
-          brew install swiftlint semgrep
+          brew install swiftlint semgrep dependency-check
 
       - name: Install Python Dependencies
         run: |
@@ -32,6 +32,7 @@ jobs:
 
       - name: Run Orchestrator
         env:
+          PROJECT_DIR: "SecurityTestApp"
           MOBSF_API_KEY: ${{ secrets.MOBSF_API_KEY }}
           MOBSF_URL: ${{ secrets.MOBSF_URL }}
         run: |
