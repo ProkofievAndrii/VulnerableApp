@@ -238,16 +238,16 @@ rules:
   # Detect hardcoded Initialization Vectors (IV) using regular expressions
   - id: hardcoded-iv
     patterns:
-        - pattern-either:
+      - pattern-either:
           - pattern: let $IV = "..."
           - pattern: var $IV = "..."
           - pattern: let $IV = "...".$METHOD(...)
           - pattern: var $IV = "...".$METHOD(...)
           - pattern: let $IV = "...".$METHOD(...)!
           - pattern: var $IV = "...".$METHOD(...)!
-          - metavariable-regex:
-              metavariable: "$IV"
-              regex: "(?i)(.*iv.*|.*initializationvector.*)"
+      - metavariable-regex:
+          metavariable: "$IV"
+          regex: "(?i)(.*iv.*|.*initializationvector.*)"
     message: "Insufficient Cryptography (OWASP M10). Hardcoded Initialization Vector (IV) detected. IVs must be random and unique for each encryption session."
     languages: [ swift ]
     severity: ERROR
