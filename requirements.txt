@@ -6,3 +6,4 @@ urllib3==2.6.3
 
 pip~=23.2.1
 python-dotenv~=1.2.2
+frida~=17.9.1

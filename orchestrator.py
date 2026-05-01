@@ -2,6 +2,7 @@ import json
 import os
 import subprocess
 import sys
+import time
 import zipfile
 import requests
 import tempfile
@@ -14,6 +15,39 @@ MOBSF_URL = os.getenv("MOBSF_URL", "DEFAULT_URL")
 API_KEY = os.getenv("MOBSF_API_KEY", "DEFAULT_KEY")
 PROJECT_DIR = os.getenv("PROJECT_DIR", "App")
 OUTPUT_ZIP = os.getenv("OUTPUT_DIR", "App.zip")
+
+
+def prepare_vulnerable_app():
+    print("[*] Preparing VulnerableApp: Building and Installing...")
+    workspace_path = os.path.join(PROJECT_DIR, "SecurityTestApp.xcworkspace")
+
+    if not os.path.exists(workspace_path):
+        print(f"    [-] Workspace not found at {workspace_path}. Maybe 'pod install'")
+        return False
+
+    build_dir = os.path.abspath("build_output")
+
+    try:
+        subprocess.run([
+            "xcodebuild", "-workspace", workspace_path,
+            "-scheme", "SecurityTestApp",
+            "-configuration", "Debug",
+            "-sdk", "iphonesimulator",
+            "-destination", "platform=iOS Simulator,name=iPhone 16 Pro",
+            f"SYMROOT={build_dir}",
+            "clean", "build"
+        ], check=True, capture_output=True)
+
+        app_path = os.path.join(build_dir, "Debug-iphonesimulator", "SecurityTestApp.app")
+        print("    [*] Installing fresh build to simulator...")
+        subprocess.run(["xcrun", "simctl", "install", "booted", app_path], check=True, capture_output=True)
+
+        print("    [*] Application successfully built and installed.")
+        return True
+    except subprocess.CalledProcessError as e:
+        error_msg = e.stderr.decode('utf-8', errors='ignore') if e.stderr else str(e)
+        print(f"    [-] Build/Install failed. Error: {error_msg}")
+        return False
 
 
 def create_zip(source_dir, output_filename):
@@ -41,7 +75,7 @@ def upload_to_mobsf(file_path):
             files = {"file": (file_name, f, "application/zip")}
             response = requests.post(url, files=files, headers=headers)
         if response.status_code == 200:
-            print("[+] Upload successful!")
+            print("    [*] Uploaded successfully")
             return response.json()["hash"]
         else:
             print(f"[-] Upload failed: {response.status_code}")
@@ -66,7 +100,7 @@ def get_mobsf_json_report(file_hash):
     data = {"hash": file_hash}
     max_retries = 3
     for i in range(max_retries):
-        print(f"[*] Fetching JSON report (Attempt {i + 1}/{max_retries})...")
+        print(f"    [*] Fetching JSON report (Attempt {i + 1}/{max_retries})...")
         response = requests.post(url, data=data, headers=headers)
         if response.status_code == 200:
             report = response.json()
@@ -86,10 +120,10 @@ def run_swiftlint():
         )
         return json.loads(result.stdout) if result.stdout else []
     except FileNotFoundError:
-        print("[-] Error: SwiftLint is not installed or not in PATH. Install it via 'brew install swiftlint'.")
+        print("    [-] Error: SwiftLint is not installed or not in PATH.")
         return []
     except json.JSONDecodeError:
-        print("[-] Error: Failed to parse SwiftLint output.")
+        print("    [-] Error: Failed to parse SwiftLint output.")
         return []
 
 
@@ -102,16 +136,15 @@ def run_semgrep():
         )
         return json.loads(result.stdout) if result.stdout else {}
     except FileNotFoundError:
-        print("[-] Error: Semgrep is not installed or not in PATH.")
+        print("    [-] Error: Semgrep is not installed or not in PATH.")
         return {}
     except json.JSONDecodeError:
-        print("[-] Error: Failed to parse Semgrep output.")
+        print("    [-] Error: Failed to parse Semgrep output.")
         return {}
 
 
 def run_dependency_check():
     print("[*] Running OWASP Dependency-Check...")
-
     with tempfile.NamedTemporaryFile(suffix=".json", delete=False) as tmp_file:
         temp_path = tmp_file.name
 
@@ -131,7 +164,7 @@ def run_dependency_check():
         )
 
         if result.returncode != 0 or "ERROR" in result.stderr:
-            print(f"[-] ODC Notice/Error: {result.stderr[:500].strip()}")
+            print(f"    [-] ODC Notice/Error: {result.stderr[:500].strip()}")
 
         if os.path.exists(temp_path):
             with open(temp_path, "r", encoding="utf-8") as f:
@@ -140,15 +173,15 @@ def run_dependency_check():
             return data
         return {}
     except FileNotFoundError:
-        print("[-] Error: dependency-check is not installed. Install via 'brew install dependency-check'.")
+        print("    [-] Error: dependency-check is not installed.")
         return {}
     except json.JSONDecodeError:
-        print("[-] Error: Failed to parse Dependency-Check output.")
+        print("    [-] Error: Failed to parse Dependency-Check output.")
         if os.path.exists(temp_path):
             os.remove(temp_path)
         return {}
     except Exception as err:
-        print(f"[-] Error running dependency-check: {err}")
+        print(f"    [-] Error running dependency-check: {err}")
         if os.path.exists(temp_path):
             os.remove(temp_path)
         return {}
@@ -166,15 +199,35 @@ def get_code_snippet(file_path, line_number):
     return "Line not found"
 
 
-def generate_final_report(lint_data, semgrep_data, mobsf_data, odc_data):
+def run_memory_leak_check(package_name):
+    print(f"[*] Running Direct RAM Scanner...")
+    dump_results = []
+
+    try:
+        result = subprocess.run(
+            ["python3", "tools/fast_scanner.py", package_name],
+            capture_output=True, text=True, check=True
+        )
+
+        for line in result.stdout.splitlines():
+            if line.startswith("VULN_FOUND:"):
+                warning = line.replace("VULN_FOUND:", "").strip()
+                if warning not in dump_results:
+                    dump_results.append(warning)
+                    print(f"    [!] VERIFIED IN RAM: {warning}")
+
+    except subprocess.CalledProcessError as e:
+        print(f"    [-] Fast scanner failed. Exit code: {e.returncode}")
+        if e.stdout: print(e.stdout.strip())
+        if e.stderr: print(e.stderr.strip())
+
+    return dump_results
+
+
+def generate_final_report(lint_data, semgrep_data, mobsf_data, odc_data, frida_data):
     from datetime import datetime
 
-    timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M")
-    report_filename = f"SECURITY_REPORT_{timestamp}.md"
-    print(f"[*] Generating Detailed Security Report: {report_filename}...")
-
     mobsf_findings = mobsf_data.get('code_analysis', {}).get('findings', {})
-
     m_issues = []
     for key, finding in mobsf_findings.items():
         metadata = finding.get('metadata', {})
@@ -192,14 +245,24 @@ def generate_final_report(lint_data, semgrep_data, mobsf_data, odc_data):
                 'description': vuln.get('description', 'No description')
             })
 
+    semgrep_results = semgrep_data.get('results', [])
+
+    total = len(lint_data) + len(semgrep_results) + len(odc_issues) + len(m_issues) + len(frida_data)
+
+    timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M")
+    report_filename = f"SECURITY_REPORT_{timestamp}.md"
+    print(f"[*] Generating Detailed Security Report: {report_filename}...")
+
     report_content = "# Detailed Security Analysis Report\n"
-    report_content += f"**Date:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
+    report_content += f"**Date:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
+    report_content += f"**Total Vulnerabilities Found:** {total}\n\n"
 
     report_content += "## 1. Executive Summary\n\n"
     report_content += f"- **SwiftLint Issues:** {len(lint_data)}\n"
-    report_content += f"- **Semgrep Issues:** {len(semgrep_data.get('results', []))}\n"
+    report_content += f"- **Semgrep Issues:** {len(semgrep_results)}\n"
     report_content += f"- **OWASP Dependency-Check Issues:** {len(odc_issues)}\n"
-    report_content += f"- **MobSF Issues:** {len(m_issues)}\n\n"
+    report_content += f"- **MobSF Issues:** {len(m_issues)}\n"
+    report_content += f"- **Dynamic Analysis (Memory) Issues:** {len(frida_data)}\n\n"
 
     report_content += "## 2. Detailed Findings\n\n"
     report_content += "---\n\n"
@@ -233,7 +296,7 @@ def generate_final_report(lint_data, semgrep_data, mobsf_data, odc_data):
         report_content += f"- **Description:** {issue['description']}\n\n"
         report_content += "---\n\n"
 
-    for finding in semgrep_data.get('results', []):
+    for finding in semgrep_results:
         file_path = finding['path']
         line = finding['start']['line']
         col = finding['start'].get('col', '0')
@@ -282,45 +345,68 @@ def generate_final_report(lint_data, semgrep_data, mobsf_data, odc_data):
         report_content += f"- **Reference:** [View Documentation]({ref})\n\n"
         report_content += "---\n\n"
 
+    for finding in frida_data:
+        report_content += f"### {finding}\n\n"
+        report_content += f"- **Tool:** RAM Scanner\n"
+        report_content += f"- **Status:** VERIFIED IN RUNTIME\n"
+        report_content += f"- **Description:** Sensitive string extracted directly from the application's memory dump during execution.\n\n"
+        report_content += "---\n\n"
+
     for f_path in [report_filename, "FINAL_SECURITY_REPORT.md"]:
         with open(f_path, "w", encoding='utf-8') as f:
             f.write(report_content)
 
-    return len(m_issues)
+    return total
 
 
 if __name__ == "__main__":
     try:
         print("=== Security Orchestration Started ===")
+
+        if not prepare_vulnerable_app():
+            print("    [-] Could not deploy app.")
+            sys.exit(1)
+
         lint_results = run_swiftlint()
         semgrep_results = run_semgrep()
         odc_results = run_dependency_check()
 
+        mobsf_report = {}
         if os.path.exists(PROJECT_DIR):
             create_zip(PROJECT_DIR, OUTPUT_ZIP)
-        else:
-            print(f"[-] Error: Directory {PROJECT_DIR} not found.")
-            sys.exit(1)
-
-        file_hash = upload_to_mobsf(OUTPUT_ZIP)
-        if file_hash:
-            if start_scan(file_hash):
-                mobsf_report = get_mobsf_json_report(file_hash)
-                m_count = generate_final_report(lint_results, semgrep_results, mobsf_report, odc_results)
-
-                total_issues = len(lint_results) + len(semgrep_results.get('results', [])) + m_count
-                if total_issues > 0:
-                    print(f"\n[-] Found vulnerabilities: {total_issues}. Commit/Push is prohibited.")
-                    sys.exit(1)
-
-                print("\n[SUCCESS] No vulnerabilities found.")
-                sys.exit(0)
+            file_hash = upload_to_mobsf(OUTPUT_ZIP)
+            if file_hash:
+                if start_scan(file_hash):
+                    mobsf_report = get_mobsf_json_report(file_hash)
+                else:
+                    print("    [-] MobSF scan failed to start. Skipping MobSF.")
             else:
-                print("[-] MobSF scan failed to start.")
-                sys.exit(1)
+                print("    [-] Could not get file hash from MobSF. Skipping MobSF.")
         else:
-            print("[-] Could not get file hash from MobSF.")
+            print(f"    [-] Error: Directory {PROJECT_DIR} not found. Skipping MobSF.")
+
+        frida_results = []
+        package_id = "ua.edu.naukma.SecurityTestApp"
+        print(f"[*] Starting target application {package_id} via simctl...")
+        process_result = subprocess.run(["xcrun", "simctl", "launch", "booted", package_id], capture_output=True)
+
+        if process_result.returncode == 0:
+            time.sleep(15)
+            frida_results = run_memory_leak_check("SecurityTestApp")
+            subprocess.run(["xcrun", "simctl", "terminate", "booted", package_id], capture_output=True)
+        else:
+            print("    [-] Failed to launch app in simulator. Skipping dynamic memory analysis.")
+
+        total_vulnerabilities = generate_final_report(lint_results, semgrep_results, mobsf_report, odc_results,
+                                                      frida_results)
+
+        if total_vulnerabilities > 0:
+            print(f"\n[-] Found vulnerabilities: {total_vulnerabilities}. Commit/Push is prohibited.")
             sys.exit(1)
+
+        print("\n[SUCCESS] No vulnerabilities found.")
+        sys.exit(0)
+
     except Exception as e:
-        print(f"[-] Error: {e}")
+        print(f"    [-] Error: {e}")
         sys.exit(1)

@@ -13,9 +13,9 @@ struct ContentView: View {
     let apiSecret = "AIzaSyB-83492_asD9238492n3asD_231908"
     let firebaseToken = "1:923481029:ios:9a2c3d4e5f6g7h8i"
 
-    @State private var username = ""
-    @State private var password = ""
-    @State private var statusMessage = ""
+    @State private var username = "username"
+    @State private var password = "secret"
+    @State private var statusMessage = "If you read this you gayy"
     
     let authService = AuthenticationService()
     let dbService = DatabaseService()
@@ -76,6 +76,10 @@ struct ContentView: View {
                 }
             }
             .navigationTitle("Security Test App")
+        }
+        .onAppear {
+            print("Init SDK with API: \(apiSecret)")
+            print("Init Firebase: \(firebaseToken)")
         }
     }
 
