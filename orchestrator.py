@@ -1,5 +1,6 @@
 import json
 import os
+import socket
 import subprocess
 import sys
 import zipfile
@@ -11,6 +12,7 @@ from owasp_mapping import OWASP_STANDARDIZATION
 load_dotenv()
 
 MOBSF_URL = os.getenv("MOBSF_URL", "DEFAULT_URL")
+MOBSF_API_KEY = os.getenv("MOBSF_API_KEY", "DEFAULT_KEY")
 API_KEY = os.getenv("MOBSF_API_KEY", "DEFAULT_KEY")
 PROJECT_DIR = os.getenv("PROJECT_DIR", "App")
 OUTPUT_ZIP = os.getenv("OUTPUT_DIR", "App.zip")
@@ -65,7 +67,36 @@ def create_zip(source_dir, output_filename):
                 zipf.write(file_path, archive_name)
 
 
+def ping_for_mobsf():
+    print("[*] Checking MobSF infrastructure...")
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    try:
+        s.settimeout(2)
+        s.connect(("localhost", 8000))
+        print("    [+] MobSF is already running.")
+        s.close()
+        return True
+    except (socket.timeout, ConnectionRefusedError):
+        print("    [-] MobSF is not reachable. Starting Docker container...")
+        docker_cmd = [
+            "docker", "run", "-d", "--rm",
+            "-p", "8000:8000",
+            "-e", f"MOBSF_API_KEY={MOBSF_API_KEY}",
+            "opensecurity/mobile-security-framework-mobsf:latest"
+        ]
+        try:
+            subprocess.run(docker_cmd, check=True)
+            print("    [*] MobSF container starting up...")
+            return True
+        except subprocess.CalledProcessError:
+            print("    [!] Error: Failed to start Docker. Ensure Docker Desktop is running.")
+            return False
+
+
 def upload_to_mobsf(file_path):
+    if not ping_for_mobsf():
+        return None
+
     print("[*] Uploading to MobSF API...")
     url = f"{MOBSF_URL}/api/v1/upload"
     headers = {"Authorization": API_KEY}
@@ -404,6 +435,7 @@ if __name__ == "__main__":
     try:
         print("=== Security Orchestration Started ===")
 
+        ping_for_mobsf()
         if not prepare_vulnerable_app():
             print("    [-] Could not deploy app.")
             sys.exit(1)
@@ -443,8 +475,7 @@ if __name__ == "__main__":
         else:
             print("    [-] Error: Failed to launch app in simulator. Skipping dynamic memory analysis.")
 
-        total_vulnerabilities = generate_final_report(lint_results, semgrep_results, mobsf_report, odc_results,
-                                                      dynamic_results)
+        total_vulnerabilities = generate_final_report(lint_results, semgrep_results, mobsf_report, odc_results, dynamic_results)
 
         if total_vulnerabilities > 0:
             print(f"\n[-] Found vulnerabilities: {total_vulnerabilities}. Commit/Push is prohibited.")
