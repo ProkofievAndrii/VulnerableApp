@@ -19,38 +19,29 @@ function toHex16(str) {
 }
 
 let foundVulnerabilities = new Set();
-let expectedCount = Object.keys(searchTerms).length;
-let attempts = 0;
-let maxAttempts = 30;
 
-function scanMemory() {
-    let protections = ['r--', 'rw-'];
+send({ "vuln": "[M8] No Anti-Debugging / Anti-Reversing protection detected" });
 
-    protections.forEach(function(prot) {
-        Process.enumerateRanges({protection: prot, coalesce: true}).forEach(function(range) {
-            if (range.size > 1024 * 1024 * 50) return;
-            Object.keys(searchTerms).forEach(function(term) {
-                if (foundVulnerabilities.has(searchTerms[term])) return;
-                try {
-                    if (Memory.scanSync(range.base, range.size, toHex8(term)).length > 0 || 
-                        Memory.scanSync(range.base, range.size, toHex16(term)).length > 0) {
-                        foundVulnerabilities.add(searchTerms[term]);
-                        send({ "vuln": searchTerms[term] });
-                    }
-                } catch(e) {}
-            });
+let protections = ['r--', 'rw-'];
+
+protections.forEach(function(prot) {
+    Process.enumerateRanges({protection: prot, coalesce: true}).forEach(function(range) {
+        if (range.size > 1024 * 1024 * 50) return;
+
+        Object.keys(searchTerms).forEach(function(term) {
+            if (foundVulnerabilities.has(searchTerms[term])) return;
+            try {
+                if (Memory.scanSync(range.base, range.size, toHex8(term)).length > 0 || 
+                    Memory.scanSync(range.base, range.size, toHex16(term)).length > 0) {
+                    foundVulnerabilities.add(searchTerms[term]);
+                    send({ "vuln": searchTerms[term] });
+                }
+            } catch(e) {}
         });
     });
+});
 
-    attempts++;
-
-    if (foundVulnerabilities.size === expectedCount || attempts >= maxAttempts) {
-        send({ "status": "done" });
-        clearInterval(scanInterval);
-    }
-}
-
-let scanInterval = setInterval(scanMemory, 1000);
+send({ "status": "done" });
 """
 
 done_event = threading.Event()
@@ -75,7 +66,8 @@ try:
     script.on('message', on_message)
     script.load()
 
-    done_event.wait(35)
+    if not done_event.wait(60):
+        print("ERROR:Scanner timed out")
     sys.exit(0)
 except Exception as e:
     print(f"ERROR:{e}")

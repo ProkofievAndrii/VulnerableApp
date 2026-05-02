@@ -194,3 +194,22 @@ class AdvancedVulnerabilitiesService: NSObject, URLSessionDelegate {
         print("DEBUG: Using static IV - \(staticIV)")
     }
 }
+
+struct SandboxLeakService {
+    static func leakCredentialsToSandbox() {
+        let fileManager = FileManager.default
+        if let documentsDirectory = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first {
+            let fileURL = documentsDirectory.appendingPathComponent("credentials.txt")
+            
+            let sensitiveData = "user: admin\npassword: super_secret_password"
+            
+            do {
+                // M9: Insecure Data Storage
+                try sensitiveData.write(to: fileURL, atomically: true, encoding: .utf8)
+                print("DEBUG: [M9] Credentials leaked to sandbox at \(fileURL.path)")
+            } catch {
+                print("DEBUG: Failed to leak credentials: \(error)")
+            }
+        }
+    }
+}

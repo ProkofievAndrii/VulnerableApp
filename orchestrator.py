@@ -15,6 +15,7 @@ MOBSF_URL = os.getenv("MOBSF_URL", "DEFAULT_URL")
 API_KEY = os.getenv("MOBSF_API_KEY", "DEFAULT_KEY")
 PROJECT_DIR = os.getenv("PROJECT_DIR", "App")
 OUTPUT_ZIP = os.getenv("OUTPUT_DIR", "App.zip")
+PACKAGE_ID = os.getenv("PACKAGE_ID", "App")
 
 
 def prepare_vulnerable_app():
@@ -224,6 +225,36 @@ def run_memory_leak_check(package_name):
     return dump_results
 
 
+def run_sandbox_check(package_id):
+    print(f"[*] [M9] Running Sandbox Inspection for {package_id}...")
+    sandbox_issues = []
+
+    try:
+        result = subprocess.run(
+            ["xcrun", "simctl", "get_app_container", "booted", package_id, "data"],
+            capture_output=True, text=True, check=True
+        )
+        container_path = result.stdout.strip()
+
+        target_file = os.path.join(container_path, "Documents", "credentials.txt")
+
+        if os.path.exists(target_file):
+            print(f"    [!] FOUND: Sensitive file discovered at {target_file}")
+
+            with open(target_file, "r", encoding="utf-8") as f:
+                content = f.read()
+                if "super_secret_password" in content or "secret" in content.lower():
+                    issue = "    [M9] Plaintext credentials found in Sandbox (credentials.txt)"
+                    sandbox_issues.append(issue)
+                    print(f"    [!] VERIFIED: Plaintext password found in file!")
+        else:
+            print("    [*] No insecure credentials file found in Documents.")
+
+    except subprocess.CalledProcessError:
+        print("    [-] Could not retrieve app container path.")
+
+    return sandbox_issues
+
 def generate_final_report(lint_data, semgrep_data, mobsf_data, odc_data, frida_data):
     from datetime import datetime
 
@@ -386,19 +417,24 @@ if __name__ == "__main__":
             print(f"    [-] Error: Directory {PROJECT_DIR} not found. Skipping MobSF.")
 
         frida_results = []
-        package_id = "ua.edu.naukma.SecurityTestApp"
-        print(f"[*] Starting target application {package_id} via simctl...")
-        process_result = subprocess.run(["xcrun", "simctl", "launch", "booted", package_id], capture_output=True)
+        print(f"[*] Starting target application {PACKAGE_ID} via simctl...")
+        process_result = subprocess.run(["xcrun", "simctl", "launch", "booted", PACKAGE_ID], capture_output=True)
 
         if process_result.returncode == 0:
-            time.sleep(15)
-            frida_results = run_memory_leak_check("SecurityTestApp")
-            subprocess.run(["xcrun", "simctl", "terminate", "booted", package_id], capture_output=True)
+            import time
+
+            time.sleep(10)
+
+            frida_results = run_memory_leak_check(PROJECT_DIR)
+            sandbox_results = run_sandbox_check(PACKAGE_ID)
+            dynamic_results = frida_results + sandbox_results
+
+            subprocess.run(["xcrun", "simctl", "terminate", "booted", PACKAGE_ID], capture_output=True)
         else:
             print("    [-] Failed to launch app in simulator. Skipping dynamic memory analysis.")
 
         total_vulnerabilities = generate_final_report(lint_results, semgrep_results, mobsf_report, odc_results,
-                                                      frida_results)
+                                                      dynamic_results)
 
         if total_vulnerabilities > 0:
             print(f"\n[-] Found vulnerabilities: {total_vulnerabilities}. Commit/Push is prohibited.")

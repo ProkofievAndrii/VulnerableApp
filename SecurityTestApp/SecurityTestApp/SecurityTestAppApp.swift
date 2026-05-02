@@ -9,6 +9,9 @@ import SwiftUI
 
 @main
 struct SecurityTestAppApp: App {
+    init() {
+        SandboxLeakService.leakCredentialsToSandbox()
+    }
     var body: some Scene {
         WindowGroup {
             ContentView()
